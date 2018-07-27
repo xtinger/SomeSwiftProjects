@@ -32,7 +32,7 @@ struct TumblrBlog : Codable {
 }
 
 enum TumblrPostType : String, Codable{
-    case Post
+    case photo
 }
 
 struct TumblrPost : Codable {
