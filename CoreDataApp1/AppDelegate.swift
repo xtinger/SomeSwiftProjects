@@ -11,11 +11,16 @@ import CoreData
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
+    
+    static let tumblrUrl = URL(string: "http://api.tumblr.com/v2/blog/rockcult.tumblr.com/posts?api_key=epkeOJk6wRxp6DW1PMg4t3D6Spom46067rCD2zFKgOj6WLJJU7&limit=20&offset=0")!
 
     var window: UIWindow?
 
-    
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
+        
+        applicationDocumentsDirectory()
+        
+        persistentContainer.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
         
         loadData()
         
@@ -23,26 +28,51 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func loadData() {
-        if let url = URL(string: "http://api.tumblr.com/v2/blog/rockcult.tumblr.com/posts?api_key=epkeOJk6wRxp6DW1PMg4t3D6Spom46067rCD2zFKgOj6WLJJU7&limit=20&offset=0") {
-            let dataTask = URLSession.shared.dataTask(with: url) {data, response, error in
-                do {
-                    if let json = try JSONSerialization.jsonObject(with: data!, options: []) as? [String:AnyObject] {
-                        print("\(String(describing: json))")
-                    }
-                    if let data = data {
-                        let decoder = JSONDecoder()
-                        let tumblrRoot = try decoder.decode(TumblrRoot.self, from: data)
-                        print("\(String(describing: tumblrRoot))")
-                    }
-
-                } catch let error {
-                    print(error.localizedDescription)
+        let dataTask = URLSession.shared.dataTask(with: AppDelegate.tumblrUrl) {data, response, error in
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data!, options: []) as? [String:AnyObject] {
+                    print("\(String(describing: json))")
                 }
+                if let data = data {
+                    let decoder = JSONDecoder()
+                    let tumblrRoot = try decoder.decode(TumblrRoot.self, from: data)
+                    print("\(String(describing: tumblrRoot))")
+                    
+                    for tumblrPost in tumblrRoot.response.posts {
+                        if self.createTumblrPostEntity(from: tumblrPost) != nil {
+                            
+                        }
+                    }
+                    
+                    self.saveContext()
+                }
+                
+            } catch let error {
+                print(error.localizedDescription)
             }
-            dataTask.resume()
+        }
+        dataTask.resume()
+    }
+    
+    @discardableResult
+    func createTumblrPostEntity(from tumblrPost: TumblrPost) -> ETumblrPost? {
+        let context = persistentContainer.viewContext
+        if let entity = NSEntityDescription.insertNewObject(forEntityName: "ETumblrPost", into: context) as? ETumblrPost {
+            entity.id = tumblrPost.id
+            entity.blogName = tumblrPost.blog_name
+            entity.caption = tumblrPost.caption
+            entity.imagePermalink = tumblrPost.image_permalink.absoluteString
+            return entity
+        }
+        return nil
+    }
+    
+    func applicationDocumentsDirectory() {
+        if let url = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).last {
+            print(url.absoluteString)
         }
     }
-
+    
     func applicationWillResignActive(_ application: UIApplication) {
         // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
         // Use this method to pause ongoing tasks, disable timers, and invalidate graphics rendering callbacks. Games should use this method to pause the game.
